@@ -15,7 +15,7 @@ class Minio {
     this.minioClient = new minio.Client({
       endPoint: config.host,
       port: parseInt(config.port),
-      secure: config.secure === 'true',
+      useSSL: config.secure === 'true',
       accessKey: config.accessKey,
       secretKey: config.secretKey,
       region: config.region
@@ -86,6 +86,25 @@ class Minio {
           return resolve(url)
         })
       }
+    })
+  }
+ 
+  /**
+   * List all files inside bucket.
+   * 
+   * @method listFiles
+   * @async
+   * 
+   * @param {String} prefix
+   * @param {String} startAfter
+   * 
+   * @return {Promise<Array>}
+   */
+  listFiles (prefix = '', startAfter = '') {
+    const bucket = this._bucket.pull()
+
+    return new Promise((resolve, reject) => {
+      this.minioClient.listObjectsV2(bucket, prefix, true,startAfter)
     })
   }
 
@@ -211,14 +230,12 @@ class Minio {
    */
   getSignedUrl (location, expiry = 600) {
     return new Promise((resolve, reject) => {
-      this.exists(location).then(exists => {
-        if (!exists) return reject(FileNotFoundException.file(location))
-        this.minioClient.presignedGetObject(this._bucket.pull(), location, expiry, function (err, presignedUrl) {
-          if (err) return reject(err)
-          return resolve(presignedUrl)
-        })
-      }).catch(err => reject(err))
+      this.minioClient.presignedGetObject(this._bucket.pull(), location, expiry, function (err, presignedUrl) {
+        if (err) return reject(err)
+        return resolve(presignedUrl)
+      })
     })
+    
   }
 }
 
